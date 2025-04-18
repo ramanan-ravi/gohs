@@ -19,6 +19,17 @@ extern int hsMatchEventCallback(unsigned int id,
 								unsigned long long to,
 								unsigned int flags,
 								void *context);
+
+extern int hsGlobalMatchEventCallback(unsigned int id,
+								unsigned long long from,
+								unsigned long long to,
+								unsigned int flags,
+								void *context);
+extern int found;
+extern unsigned long long last_index;
+extern char *data;
+extern unsigned int data_size;
+extern void call_hs(hs_database_t* db, hs_scratch_t *s);
 */
 import "C"
 
@@ -51,6 +62,31 @@ func hsMatchEventCallback(id C.uint, from, to C.ulonglong, flags C.uint, data un
 	}
 
 	return C.HS_SUCCESS
+}
+
+func GlobalScan(db Database, data string, s Scratch) (bool, uint64) {
+	//if len(data) == 0 {
+	//	return Error(C.HS_INVALID)
+	//}
+
+	C.found = 0
+	C.last_index = 0
+	C.data = (*C.char)(unsafe.Pointer(unsafe.StringData(data)))
+	C.data_size = C.uint(len(data))
+
+	C.call_hs(db, s)
+
+	C.data = nil // Prevents false positive GC check panic
+
+	// Ensure go data is alive before the C function returns
+	// TODO: check if needed
+	runtime.KeepAlive(data)
+
+	//if ret != C.HS_SUCCESS {
+	//	return Error(ret)
+	//}
+
+	return bool(C.found == 1), uint64(C.last_index)
 }
 
 func Scan(db Database, data []byte, flags ScanFlag, s Scratch, cb MatchEventHandler, ctx interface{}) error {
